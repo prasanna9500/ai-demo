@@ -1,21 +1,74 @@
 import os
-from google import genai
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+prompt = os.environ["USER_PROMPT"].lower()
 
-response = client.models.generate_content(
-model="gemini-2.5-flash",
-contents=os.environ["USER_PROMPT"]
+terraform_code = ""
+
+if "s3" in prompt and "bucket" in prompt:
+
+```
+bucket_name = "ai-demo-bucket"
+
+words = prompt.replace(",", " ").split()
+
+for word in words:
+    if "bucket" in word:
+        continue
+
+terraform_code = f'''
+```
+
+terraform {{
+required_providers {{
+aws = {{
+source  = "hashicorp/aws"
+version = "~> 5.0"
+}}
+}}
+}}
+
+provider "aws" {{
+region = "us-east-1"
+}}
+
+resource "aws_s3_bucket" "demo" {{
+bucket = "{bucket_name}"
+}}
+'''
+
+elif "ec2" in prompt or "instance" in prompt:
+
+```
+terraform_code = '''
+```
+
+terraform {
+required_providers {
+aws = {
+source  = "hashicorp/aws"
+version = "~> 5.0"
+}
+}
+}
+
+provider "aws" {
+region = "us-east-1"
+}
+
+resource "aws_instance" "demo" {
+ami           = "ami-0c02fb55956c7d316"
+instance_type = "t2.micro"
+}
+'''
+
+else:
+raise Exception(
+f"Unsupported request: {prompt}. Try S3 bucket or EC2 instance."
 )
-
-terraform_code = response.text
-
-file_content = terraform_code.replace("`terraform", "")
-file_content = file_content.replace("`hcl", "")
-file_content = file_content.replace("```", "")
 
 os.makedirs("terraform", exist_ok=True)
 
-open("terraform/main.tf", "w").write(file_content)
+with open("terraform/main.tf", "w", encoding="utf-8") as f:
+f.write(terraform_code)
 
-print(file_content)
+print(terraform_code)
