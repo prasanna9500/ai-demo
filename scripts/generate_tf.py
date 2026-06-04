@@ -1,20 +1,15 @@
 import os
-import google.generativeai as genai
+from google import genai
 
-# Read Gemini API Key
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
+client = genai.Client(
+    api_key=os.environ["GEMINI_API_KEY"]
 )
 
-# Gemini Model
-model = genai.GenerativeModel("gemini-1.5-flash")
+prompt = os.environ["USER_PROMPT"]
 
-# Read prompt from GitHub workflow
-prompt = os.getenv("USER_PROMPT")
-
-# Ask Gemini to generate Terraform
-response = model.generate_content(
-    f"""
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents=f"""
 Generate Terraform code only.
 
 Request:
@@ -24,11 +19,9 @@ Output only Terraform HCL code.
 """
 )
 
-# Create terraform folder if needed
 os.makedirs("terraform", exist_ok=True)
 
-# Save Terraform code
 with open("terraform/main.tf", "w") as f:
     f.write(response.text)
 
-print("Terraform file generated")
+print("Terraform file generated successfully")
