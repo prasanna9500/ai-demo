@@ -18,8 +18,7 @@ Rules:
 * Do NOT use markdown
 * Do NOT use triple backticks
 * Do NOT provide explanations
-* Include provider configuration if needed
-* Output must be directly usable as a main.tf file
+* Include provider configuration if required
 
 User Request:
 {prompt}
@@ -28,7 +27,7 @@ User Request:
 
 terraform_code = response.text
 
-# Remove markdown formatting if Gemini adds it
+# Remove markdown formatting if present
 
 terraform_code = terraform_code.replace("`terraform", "")
 terraform_code = terraform_code.replace("`hcl", "")
