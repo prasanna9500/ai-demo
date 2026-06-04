@@ -1,50 +1,35 @@
 import os
 from google import genai
 
-# Create Gemini client
+api_key = os.environ.get("GEMINI_API_KEY")
+prompt = os.environ.get("USER_PROMPT")
 
-client = genai.Client(
-api_key=os.environ["GEMINI_API_KEY"]
-)
-
-# Get prompt from GitHub Actions
-
-prompt = os.environ["USER_PROMPT"]
-
-# Generate Terraform
+client = genai.Client(api_key=api_key)
 
 response = client.models.generate_content(
 model="gemini-2.5-flash",
 contents=f"""
-Generate valid Terraform HCL code only.
+Generate valid Terraform HCL only.
 
-Requirements:
+Rules:
 
-* Return ONLY Terraform code
+* Output only Terraform code
 * No markdown
-* No triple backticks
 * No explanations
-* Include AWS provider block when required
+* No triple backticks
 
-User Request:
+Request:
 {prompt}
 """
 )
 
-terraform_code = response.text
-
-# Remove markdown if model accidentally returns it
+terraform_code = response.text.strip()
 
 terraform_code = terraform_code.replace("`terraform", "")
 terraform_code = terraform_code.replace("`hcl", "")
 terraform_code = terraform_code.replace("```", "")
-terraform_code = terraform_code.strip()
-
-# Create terraform directory if it doesn't exist
 
 os.makedirs("terraform", exist_ok=True)
-
-# Write Terraform code to file
 
 with open("terraform/main.tf", "w", encoding="utf-8") as f:
 f.write(terraform_code)
@@ -52,4 +37,3 @@ f.write(terraform_code)
 print("===== GENERATED TERRAFORM =====")
 print(terraform_code)
 print("================================")
-print("Terraform file generated successfully")
