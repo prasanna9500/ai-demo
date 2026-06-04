@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install google-generativeai
+      - run: pip install google-genai
 
       - run: python scripts/generate_tf.py
 
