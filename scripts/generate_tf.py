@@ -21,7 +21,7 @@ resource "aws_s3_bucket" "demo" {
 bucket = "demo-bucket-89312"
 }
 """
-elif "ec2" in prompt or "instance" in prompt:
+elif "ec2" in prompt:
 terraform_code = """
 terraform {
 required_providers {
@@ -42,11 +42,11 @@ instance_type = "t2.micro"
 }
 """
 else:
-raise Exception(f"Unsupported request: {prompt}")
+raise Exception("Unsupported request")
 
 os.makedirs("terraform", exist_ok=True)
 
-with open("terraform/main.tf", "w", encoding="utf-8") as f:
+with open("terraform/main.tf", "w") as f:
 f.write(terraform_code)
 
 print(terraform_code)
