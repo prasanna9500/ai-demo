@@ -29,7 +29,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install google-genai
-
+          
+      - name: Show generate_tf.py
+        run: |
+          echo "===== generate_tf.py ====="
+          cat scripts/generate_tf.py
+          echo "=========================="
+          
       - name: Generate Terraform
         run: |
           python scripts/generate_tf.py
