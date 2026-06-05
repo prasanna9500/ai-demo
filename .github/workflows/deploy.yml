@@ -26,15 +26,12 @@ jobs:
 
       - name: Generate Terraform
         run: python scripts/generate_tf.py
-
+        
       - name: Show Generated Terraform
         run: |
           echo "===== main.tf ====="
           cat terraform/main.tf
-          echo ""
-          echo "===== action.txt ====="
-          cat terraform/action.txt
-
+          
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
