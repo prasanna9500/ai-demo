@@ -38,8 +38,11 @@ jobs:
           ########################################
           # ✅ KEYWORD DETECTION
           ########################################
-          CREATE=$(echo "$USER_REQUEST" | grep -qiE "create|need|provision" && echo true)
-          DELETE=$(echo "$USER_REQUEST" | grep -qiE "delete|destroy|remove|terminate" && echo true)
+          CREATE=false
+          DELETE=false
+          
+          echo "$USER_REQUEST" | grep -qiE "create|need|provision" && CREATE=true || true
+          echo "$USER_REQUEST" | grep -qiE "delete|destroy|remove|terminate" && DELETE=true || true
 
           ########################################
           # ✅ CREATE EC2
