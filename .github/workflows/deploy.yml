@@ -84,7 +84,7 @@ jobs:
             [ -z "$NAME" ] && NAME="lambda-$(date +%s)"
 
             echo "Creating Lambda: $NAME"
-
+            set -x
             # Create simple lambda zip
             echo 'def lambda_handler(event, context): return "Hello from Lambda"' > lambda.py
             zip function.zip lambda.py
