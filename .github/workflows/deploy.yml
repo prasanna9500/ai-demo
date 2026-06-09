@@ -21,14 +21,28 @@ jobs:
         run: |
           echo "User Request: $USER_REQUEST"
 
-          # ✅ Extract name
+          ########################################
+          # ✅ EXTRACT NAME (SMART)
+          ########################################
           NAME=$(echo "$USER_REQUEST" | grep -oE "name [a-zA-Z0-9\-]+" | awk '{print $2}')
+
+          if [ -z "$NAME" ]; then
+            NAME=$(echo "$USER_REQUEST" | awk '{print $NF}')
+          fi
+
           echo "Resolved Name: $NAME"
+
+          ########################################
+          # ✅ KEYWORD DETECTION
+          ########################################
+          CREATE=$(echo "$USER_REQUEST" | grep -qiE "create|need|provision" && echo true)
+          DELETE=$(echo "$USER_REQUEST" | grep -qiE "delete|destroy|remove|terminate" && echo true)
 
           ########################################
           # ✅ CREATE EC2
           ########################################
-          if echo "$USER_REQUEST" | grep -qi "create ec2"; then
+          if echo "$USER_REQUEST" | grep -qi "ec2" && [ "$CREATE" = true ]; then
+
             [ -z "$NAME" ] && NAME="ec2-$(date +%s)"
 
             echo "Creating EC2: $NAME"
@@ -51,7 +65,8 @@ jobs:
           ########################################
           # ✅ CREATE S3
           ########################################
-          if echo "$USER_REQUEST" | grep -qi "create s3"; then
+          if echo "$USER_REQUEST" | grep -qi "s3" && [ "$CREATE" = true ]; then
+
             [ -z "$NAME" ] && NAME="bucket-$(date +%s)"
 
             echo "Creating S3: $NAME"
@@ -62,15 +77,37 @@ jobs:
           fi
 
           ########################################
-          # ✅ DESTROY EC2 (BY NAME)
+          # ✅ CREATE LAMBDA
           ########################################
-          if echo "$USER_REQUEST" | grep -qi "destroy ec2"; then
+          if echo "$USER_REQUEST" | grep -qi "lambda" && [ "$CREATE" = true ]; then
+
+            [ -z "$NAME" ] && NAME="lambda-$(date +%s)"
+
+            echo "Creating Lambda: $NAME"
+
+            # Create simple lambda zip
+            echo 'def lambda_handler(event, context): return "Hello from Lambda"' > lambda.py
+            zip function.zip lambda.py
+
+            aws lambda create-function \
+              --function-name "$NAME" \
+              --runtime python3.11 \
+              --role arn:aws:iam::195731802338:role/lambda-basic-role \
+              --handler lambda.lambda_handler \
+              --zip-file fileb://function.zip
+
+            echo "✅ Lambda created"
+          fi
+
+          ########################################
+          # ✅ DELETE EC2
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "ec2" && [ "$DELETE" = true ]; then
+
             if [ -z "$NAME" ]; then
-              echo "❌ Name required to delete EC2"
+              echo "❌ Name required for EC2 delete"
               exit 1
             fi
-
-            echo "Finding EC2 with name: $NAME"
 
             INSTANCE_ID=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=$NAME" \
@@ -82,27 +119,39 @@ jobs:
               exit 1
             fi
 
-            echo "Terminating EC2: $INSTANCE_ID"
-
             aws ec2 terminate-instances --instance-ids $INSTANCE_ID
 
             echo "✅ EC2 deleted"
           fi
 
           ########################################
-          # ✅ DESTROY S3 (BY NAME)
+          # ✅ DELETE S3
           ########################################
-          if echo "$USER_REQUEST" | grep -qi "destroy s3"; then
+          if echo "$USER_REQUEST" | grep -qi "s3" && [ "$DELETE" = true ]; then
+
             if [ -z "$NAME" ]; then
-              echo "❌ Name required to delete S3"
+              echo "❌ Name required for S3 delete"
               exit 1
             fi
-
-            echo "Deleting S3: $NAME"
 
             aws s3 rb s3://$NAME --force
 
             echo "✅ S3 deleted"
+          fi
+
+          ########################################
+          # ✅ DELETE LAMBDA
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "lambda" && [ "$DELETE" = true ]; then
+
+            if [ -z "$NAME" ]; then
+              echo "❌ Name required for Lambda delete"
+              exit 1
+            fi
+
+            aws lambda delete-function --function-name "$NAME"
+
+            echo "✅ Lambda deleted"
           fi
 
           echo "✅ Done"
