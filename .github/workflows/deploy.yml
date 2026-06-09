@@ -19,6 +19,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         run: |
+          set -e
+          set -x
+
           echo "User Request: $USER_REQUEST"
 
           ########################################
@@ -54,9 +57,16 @@ jobs:
               --query "Images | sort_by(@,&CreationDate)[-1].ImageId" \
               --output text)
 
+            if [ -z "$AMI" ]; then
+              echo "❌ Failed to fetch AMI"
+              exit 1
+            fi
+
+            echo "Using AMI: $AMI"
+
             aws ec2 run-instances \
               --image-id "$AMI" \
-              --instance-type t3.micro \
+              --instance-type "t3.micro" \
               --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME}]"
 
             echo "✅ EC2 created"
@@ -71,7 +81,7 @@ jobs:
 
             echo "Creating S3: $NAME"
 
-            aws s3 mb s3://$NAME
+            aws s3 mb "s3://$NAME"
 
             echo "✅ S3 created"
           fi
@@ -90,36 +100,3 @@ jobs:
 
             INSTANCE_ID=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=$NAME" \
-              --query "Reservations[].Instances[].InstanceId" \
-              --output text)
-
-            if [ -z "$INSTANCE_ID" ]; then
-              echo "No EC2 found"
-              exit 1
-            fi
-
-            echo "Terminating EC2: $INSTANCE_ID"
-
-            aws ec2 terminate-instances --instance-ids $INSTANCE_ID
-
-            echo "✅ EC2 deleted"
-          fi
-
-          ########################################
-          # ✅ DELETE S3
-          ########################################
-          if echo "$USER_REQUEST" | grep -qi "s3" && [ "$DELETE" = true ]; then
-
-            if [ -z "$NAME" ]; then
-              echo "❌ Name required for S3 delete"
-              exit 1
-            fi
-
-            echo "Deleting S3: $NAME"
-
-            aws s3 rb s3://$NAME --force
-
-            echo "✅ S3 deleted"
-          fi
-
-          echo "✅ Done"
