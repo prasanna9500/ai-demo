@@ -25,9 +25,9 @@ jobs:
           echo "User Request: $USER_REQUEST"
 
           ########################################
-          # ✅ EXTRACT NAME (SMART)
+          # ✅ EXTRACT NAME
           ########################################
-          NAME=$(echo "$USER_REQUEST" | grep -oE "name [a-zA-Z0-9\-]+" | awk '{print $2}')
+          NAME=$(echo "$USER_REQUEST" | grep -oE "name [a-zA-Z0-9\-]+" | awk '{print $2}') || true
 
           if [ -z "$NAME" ]; then
             NAME=$(echo "$USER_REQUEST" | awk '{print $NF}')
@@ -40,40 +40,36 @@ jobs:
           ########################################
           CREATE=false
           DELETE=false
-          
+
           echo "$USER_REQUEST" | grep -qiE "create|need|provision" && CREATE=true || true
           echo "$USER_REQUEST" | grep -qiE "delete|destroy|remove|terminate" && DELETE=true || true
+
           ########################################
-          # ✅ CREATE EC2 (FINAL FIXED)
+          # ✅ CREATE EC2
           ########################################
           if echo "$USER_REQUEST" | grep -qi "ec2" && [ "$CREATE" = true ]; then
-          
+
             [ -z "$NAME" ] && NAME="ec2-$(date +%s)"
-          
+
             echo "Creating EC2: $NAME"
-          
+
             AMI=$(aws ec2 describe-images \
               --owners 099720109477 \
               --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
                         "Name=state,Values=available" \
               --query 'Images | sort_by(@,&CreationDate)[-1].ImageId' \
               --output text)
-          
-            if [ -z "$AMI" ]; then
-              echo "❌ Failed to fetch AMI"
-              exit 1
-            fi
-          
+
             echo "Using AMI: $AMI"
-          
+
             aws ec2 run-instances \
               --image-id "$AMI" \
               --instance-type "t3.micro" \
               --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$NAME}]"
-          
+
             echo "✅ EC2 created"
           fi
-          ``
+
           ########################################
           # ✅ CREATE S3
           ########################################
@@ -93,12 +89,31 @@ jobs:
           ########################################
           if echo "$USER_REQUEST" | grep -qi "ec2" && [ "$DELETE" = true ]; then
 
-            if [ -z "$NAME" ]; then
-              echo "❌ Name required for EC2 delete"
-              exit 1
-            fi
-
             echo "Finding EC2 with name: $NAME"
 
             INSTANCE_ID=$(aws ec2 describe-instances \
               --filters "Name=tag:Name,Values=$NAME" \
+              --query "Reservations[].Instances[].InstanceId" \
+              --output text)
+
+            if [ -z "$INSTANCE_ID" ]; then
+              echo "No EC2 found"
+            else
+              aws ec2 terminate-instances --instance-ids "$INSTANCE_ID"
+              echo "✅ EC2 deleted"
+            fi
+          fi
+
+          ########################################
+          # ✅ DELETE S3
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "s3" && [ "$DELETE" = true ]; then
+
+            echo "Deleting S3: $NAME"
+
+            aws s3 rb "s3://$NAME" --force
+
+            echo "✅ S3 deleted"
+          fi
+
+          echo "✅ Done"
