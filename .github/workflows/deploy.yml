@@ -12,6 +12,75 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Print Input
+      - name: Execute Kiro Commands
+        env:
+          USER_REQUEST: ${{ github.event.inputs.request }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         run: |
-          echo "User Request: ${{ github.event.inputs.request }}"
+          echo "User Request: $USER_REQUEST"
+
+          # ✅ Extract name
+          NAME=$(echo "$USER_REQUEST" | grep -oE "name [a-zA-Z0-9\-]+" | awk '{print $2}')
+
+          echo "Resolved Name: $NAME"
+
+          ########################################
+          # ✅ CREATE EC2
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "create ec2"; then
+            if [ -z "$NAME" ]; then
+              NAME="ec2-$(date +%s)"
+            fi
+
+            echo "Creating EC2: $NAME"
+
+            kiro ec2 create \
+              --name "$NAME" \
+              --instance-type t3.micro \
+              --region "$AWS_DEFAULT_REGION"
+          fi
+
+          ########################################
+          # ✅ CREATE S3
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "create s3"; then
+            if [ -z "$NAME" ]; then
+              NAME="bucket-$(date +%s)"
+            fi
+
+            echo "Creating S3: $NAME"
+
+            kiro s3 create --name "$NAME"
+          fi
+
+          ########################################
+          # ✅ DELETE EC2 (BY NAME)
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "destroy ec2"; then
+            if [ -z "$NAME" ]; then
+              echo "ERROR: Name is required to delete EC2"
+              exit 1
+            fi
+
+            echo "Deleting EC2: $NAME"
+
+            kiro ec2 delete --name "$NAME"
+          fi
+
+          ########################################
+          # ✅ DELETE S3 (BY NAME)
+          ########################################
+          if echo "$USER_REQUEST" | grep -qi "destroy s3"; then
+            if [ -z "$NAME" ]; then
+              echo "ERROR: Name is required to delete S3"
+              exit 1
+            fi
+
+            echo "Deleting S3: $NAME"
+
+            kiro s3 delete --name "$NAME"
+          fi
+
+          echo "✅ Execution completed"
